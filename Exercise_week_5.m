@@ -7,7 +7,7 @@ setenv('ROS_IP','192.168.1.50')
 rosinit('http://192.168.1.200:11311','NodeHost','192.168.1.50');
 
 %% Makemap 
-map = makemap();
+map = openfig('map.fig');
 
 %% Subscribe to robot position 
 odom = rossubscriber('/odom');
