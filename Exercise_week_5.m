@@ -1,9 +1,6 @@
 %% Initiate 
-roslaunch turtlebot_bringup 3dsensor.launch
-
 setenv('ROS_MASTER_URI','http://192.168.1.200:11311')
-% assuming your own ip is 192.168.1.100
-setenv('ROS_IP','192.168.1.50')
+setenv('ROS_IP','192.168.1.100')
 rosinit('http://192.168.1.200:11311','NodeHost','192.168.1.50');
 
 %% Makemap 
