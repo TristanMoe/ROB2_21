@@ -15,13 +15,18 @@ odom = rossubscriber('/odom');
 robot = rospublisher('/mobile_base/commands/velocity');
 velmsg = rosmessage(robot);
 
-%% Set goal and find path 
-goal = [50,50];
-start = [45,5]; 
+%% Get robots start position
+odomdata = receive(odom, 2); 
+pose = odomdata.Pose.Pose;
+start = [pose.Position.X, pose.Position.Y]; 
+
+goal = [5,5];
 dx = DXform(map);
 dx.plan(goal); 
-path = dx.query(start); 
+path = dx.query(start, 'animate'); 
+path = path(2:2:end,:); 
 
+%%
 % Set controller
 controller = robotics.PurePursuit;
 controller.Waypoints = path; 
@@ -36,10 +41,9 @@ distanceToGoal = norm(start - goalRadius);
 % Robot control loop
 while( distanceToGoal > goalRadius )
     % Get turtlebot pose 
-    %odomdata = receive(odom, 2); 
-   % pose = odomdata.Pose.Pose;
-    %theta = pose.Orientation.W;
-    f = robot.getPose
+    odomdata = receive(odom, 2); 
+    pose = odomdata.Pose.Pose;
+    theta = pose.Orientation.W;
     poseVector = [pose.Position.X, pose.Position.Y, theta]; 
     
     % Get new values for robot
@@ -50,9 +54,3 @@ while( distanceToGoal > goalRadius )
     velmsg.Angular.Z = angVel;       
     send(robot, velmsg);    
 end
-
-
-
-
-
-
