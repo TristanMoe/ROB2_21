@@ -54,3 +54,46 @@ while(distanceToGoal > goalRadius)
     velmsg.Angular.Z = angVel;       
     send(robot, velmsg);        
 end
+
+%% Simulering 
+goal = [48,12];
+start = [45,10]; 
+dx = DXform(map);
+dx.plan(goal); 
+path = dx.query(start);
+
+goalRadius = 0.5; 
+robotCurrentLocation = path(1,:);
+robotGoal = path(end,:);
+
+robotCurrentPose = [robotCurrentLocation 0];
+robot = ExampleHelperDifferentialDriveRobot(robotCurrentPose); 
+
+controller = robotics.PurePursuit; 
+controller.Waypoints = path;
+controller.DesiredLinearVelocity = 0.3;
+controller.MaxAngularVelocity = 2;
+controller.LookaheadDistance = 0.5;
+
+
+distanceToGoal = norm(robotCurrentPose(1:2) - robotGoal);
+
+while( distanceToGoal > goalRadius )
+    [v, w] = controller(robot.CurrentPose);
+    drive(robot, v, w); 
+    robotCurrentPose = robot.CurrentPose; 
+    distanceToGoal = norm(robotCurrentPose(1:2) - robotGoal); 
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
