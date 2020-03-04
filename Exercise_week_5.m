@@ -55,13 +55,14 @@ while(distanceToGoal > goalRadius)
     send(robot, velmsg);        
 end
 
-%% Simulering 
-goal = [48,12];
+%% Path simulering 
+goal = [120,50];
 start = [45,10]; 
 dx = DXform(map);
 dx.plan(goal); 
 path = dx.query(start);
 
+%% Turtlebot simulering
 goalRadius = 0.5; 
 robotCurrentLocation = path(1,:);
 robotGoal = path(end,:);
