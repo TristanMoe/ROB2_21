@@ -6,8 +6,7 @@ rosinit('http://192.168.1.200:11311','NodeHost','192.168.1.50');
 
 %% Makemap 
 map = openfig('map.fig');
-%map = makemap(10); %MAKE SURE TO CHECK map.fig if the line above
-%does not work and create map with the same look
+%map = makemap(10); %MAKE SURE TO CHECK map.fig file if the uncommented 
 
 %% Subscribe to robot position and resets odometer
 odom = rossubscriber('/odom');
@@ -24,7 +23,7 @@ velmsg = rosmessage(robot);
 odomdata = receive(odom, 2); 
 pose = odomdata.Pose.Pose;
 
-%% Setting path with either DXForm or with hardcoded path
+%% Setting path 
 useHardCodedPath = true; %change to false to use DXForm algorithm
 start = [3 3]; 
 goal = [3 5]; 
@@ -68,10 +67,9 @@ while(distanceToGoal >= goalRadius)
     distanceToGoal = norm(poseVector(1:2) - goal); 
 end
 
-%% Simulering med DXForm (can be run independent of above code)
-map = makemap(100);
-goal = [10,10];
-start = [50,50]; 
+%% Simulering med DXForm
+goal = [48,12];
+start = [45,10]; 
 dx = DXform(map);
 dx.plan(goal); 
 path = dx.query(start);
