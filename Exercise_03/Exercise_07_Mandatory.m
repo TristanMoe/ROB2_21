@@ -27,7 +27,7 @@ anglesRange = readScanAngles(scan);
 [cart, angles] = readCartesian(scan, 'RangeLimit', [minRange, maxRange]);
 
 figure(); 
-plot(cart(:,2), cart(:,1), '.'); 
+plot(cart(:,1), cart(:,2), '.'); 
 
 figure(); 
 plot(scan);
@@ -36,7 +36,7 @@ plot(scan);
 mat = scale(cart); 
 imshow(mat);
 %% Hough Transform & Peaks
-[distanceToWall, robAngle, minimumLine] = getObstacleInformation(cart);
+[distanceToWall, robAngle, minimumLine] = getObstacleInformation(mat);
 
 %% Function to extract range-angle coordinate
 % Robot range to wall 
