@@ -6,7 +6,7 @@ rosinit('http://192.168.1.200:11311','NodeHost','192.168.1.50');
 
 %% Makemap 
 %map = openfig('map.fig');
-map = makemap();
+map = makemap(10);
 
 %% Subscribe to robot position 
 odom = rossubscriber('/odom');
@@ -56,11 +56,11 @@ while(distanceToGoal > goalRadius)
 end
 
 %% Path simulering 
-goal = [120,50];
+goal = [120,80];
 start = [45,10]; 
-dx = DXform(map);
+dx = Dstar(map);
 dx.plan(goal); 
-path = dx.query(start);
+path = dx.query(start, 'animate');
 
 %% Turtlebot simulering
 goalRadius = 0.5; 
