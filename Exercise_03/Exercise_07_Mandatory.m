@@ -12,6 +12,11 @@ laser = rossubscriber('/scan');
 scan = receive(laser,3);
 plot(scan)
 
+%% Simulation
+exampleHelperROSLoadMessages
+scan;
+plot(scan);
+
 %% Extract cartesian from scan-plot
 minRange = 0.1; 
 maxRange = 7; 
@@ -66,7 +71,7 @@ function [distanceToWall, robAngle, minimumLine] = getObstacleInformation(mat)
 minPeakThreshold = 0.1;
 minLineThreshold = 15; 
 
-numpeaks = 100;
+numpeaks = 10;
 hPeaks = houghpeaks(H, numpeaks, 'Threshold', minPeakThreshold); 
 
 % Get lines 
