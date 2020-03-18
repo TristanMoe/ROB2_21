@@ -39,17 +39,14 @@ imshow(mat);
 %% Hough Transform & Get lines
 lines = getObstacleInformation(mat);
 
-%% Find overall shortest distance for all lines.
 for k = 1:length(lines)
-    % Find XY_RHO - Create perpendicular triangle and calculate XY for
-    % rho-coordinate point.
+    % Find XY_RHO
     theta_rho = 90 - abs(lines(k).theta); 
     dist_rho = lines(k).rho; 
     
     x_rho = (sin(theta_rho)*dist_rho)/sin(90); 
-    y_rho = (sin(180-theta_rho-90)*dist_rho)/sin(90);
+
     
-    xy_rho = [x_rho, y_rho];    
     
     % Find distance to P1 
     X = [0,0];
@@ -59,12 +56,6 @@ for k = 1:length(lines)
     % Find distance to P2 
     P2 = [lines(k).point2];
     distP2 = pdist(X, 'euclidean');
-    
-    % Find linear function for P1, P2 ???
-    coeff = polyfit([P1], [P2], 1);   
-    a = coeff(1);
-    b = coeff(2);
-    y_pos_rho = a*x_rho+b; 
 end
 
 
