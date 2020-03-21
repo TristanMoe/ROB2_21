@@ -36,14 +36,12 @@ plot(scan);
 %% Resize grid & data 
 mat = scale(cart); 
 imshow(mat);
+getObstacleInformation(mat); 
 %% Hough Transform & Get lines
-lines = getObstacleInformation(mat);
+lines = getObstacleInformation(cart);
 
 %% Find overall shortest distance for all lines.
 
-
-
-distLineShortest(length(lines)) = 0; 
 for k = 1:length(lines)
     line = lines(k); 
     % Find XY_RHO - Create perpendicular triangle and calculate XY for
@@ -71,12 +69,6 @@ for k = 1:length(lines)
     P2 = [lines(k).point2];
     distP2 = pdist([X;P2], 'euclidean');
     
-    % Find linear function for P1, P2
-    coeff = polyfit(P1, P2, 1);   
-    a = coeff(1);
-    b = coeff(2);
-    y_pos_rho = a*x_rho+b; 
-    
     % Check if x_rho, y_rho is with P1 & P2
     % Find largest x-value
     P_points = [P1(1) P2(1)];
@@ -88,35 +80,25 @@ for k = 1:length(lines)
         distLineShortest(k).angle = lines(k).theta;  
     else
         X = [0,0];
-        distLineShortest(k).dist = min([distP1 distP2]);
-        distLineShortest(k).angle = getAngle(X,
+        P_dist = [distP1; distP2]; 
+        P_minPoints = [P1; P2];
+        
+        [minDist, indexMin] = min(P_dist); 
+        distLineShortest(k).dist = minDist;    
+        
+        P_min = P_minPoints(indexMin,:);         
+        distLineShortest(k).angle = atan2d(P_min(1), P_min(2)); 
     end
 end
 
-distShortest = min(distLineShortest); 
-
+[distShortest, index] = min([distLineShortest(:).dist]);
+angleShortest = distLineShortest(index).angle;
 
 
 %% Find range between two points
-X = [0,0;0.6,1.18];
+X = [0,0;-0.5188,3.82];
+Angle = []
 dist = pdist(X, 'euclidean'); 
-
-%% Testing stuff 
-exampleHelperROSLoadMessages
-scan;
-plot(scan) 
-
-% Read cart
-[cart, angles] = readCartesian(scan, 'RangeLimit', [minRange, maxRange]);
-[H, T, R] = hough(cart); 
-P = houghpeaks(H, 5, 'threshold', ceil(0.3*max(H(:))));
-
-lines = houghlines(cart, T, R, P, 'FillGap', 5, 'MinLength', 7);
-
-for k = 1:length(lines)
-    xy = [lines(k).point1; lines(k).point2];
-    plot(xy(:,1),xy(:,2), 'LineWidth', 2, 'Color', 'green'); 
-end
 
 %% Function to extract range-angle coordinate
 % Robot range to wall 
@@ -146,23 +128,23 @@ end
 
 % Function to get distance to wall
 % Robot angle between wall and x-axis 
-function lines = getObstacleInformation(mat)
-[H, theta, rho] = hough(mat);
+function lines = getObstacleInformation(cart)
+[H, theta, rho] = hough(cart);
 minPeakThreshold = 0.1;
 minLineThreshold = 5; 
 
-numpeaks = 10;
+numpeaks = 15;
 hPeaks = houghpeaks(H, numpeaks, 'Threshold', minPeakThreshold); 
 
 % Get lines 
-lines = houghlines(mat,theta,rho,hPeaks,'FillGap',5,'MinLength',minLineThreshold);
+lines = houghlines(cart,theta,rho,hPeaks,'FillGap',5,'MinLength',minLineThreshold);
 
 % Show lines
-imshow(mat), hold on,
-for k = 1:length(lines)
-   xy = [lines(k).point1; lines(k).point2];
-   plot(xy(:,1),xy(:,2),'LineWidth',2,'Color','green');
-end
+%imshow(cart), hold on,
+%for k = 1:length(lines)
+%   xy = [lines(k).point1; lines(k).point2];
+%   plot(xy(:,1),xy(:,2),'LineWidth',2,'Color','green');
+%end
 end
 
 
