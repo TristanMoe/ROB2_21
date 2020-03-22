@@ -1,21 +1,22 @@
-%% Initiate 
-rosshutdown
-
-% !!! REMEMBER TO CHANGE IP BASED ON HOST !!!
-setenv('ROS_MASTER_URI','http://192.168.87.107:11311')
-setenv('ROS_IP','192.168.87.106')
-rosinit('http://192.168.87.107:11311','NodeHost','192.168.87.106');
-
-%% Subscribe to Laser
-laser = rossubscriber('/scan');
-% Load scan, timeout 3 seconds
-scan = receive(laser,3);
-plot(scan)
+% %% Initiate 
+% rosshutdown
+% 
+% % !!! REMEMBER TO CHANGE IP BASED ON HOST !!!
+% setenv('ROS_MASTER_URI','http://192.168.87.107:11311')
+% setenv('ROS_IP','192.168.87.106')
+% rosinit('http://192.168.87.107:11311','NodeHost','192.168.87.106');
+% 
+% %% Subscribe to Laser
+% laser = rossubscriber('/scan');
+% % Load scan, timeout 3 seconds
+% scan = receive(laser,3);
+% plot(scan)
 
 %% Simulation
 exampleHelperROSLoadMessages
 scan;
-plot(scan);
+% plot(scan);
+
 
 %% Extract cartesian from scan-plot
 minRange = 0.1; 
@@ -25,23 +26,39 @@ range = scan.Ranges;
 anglesRange = readScanAngles(scan); 
 
 [cart, angles] = readCartesian(scan, 'RangeLimit', [minRange, maxRange]);
-
 figure(); 
 plot(cart(:,2), cart(:,1), '.'); 
 axis equal 
 
-figure(); 
-plot(scan);
+% figure(); 
+% plot(scan);
 
-%% Resize grid & data 
-mat = scale(cart); 
-imshow(mat);
-getObstacleInformation(mat); 
-%% Hough Transform & Get lines
+% scale to image and scale back to get coordinates of lines then find rho
+% and theta from these points
+
 lines = getObstacleInformation(cart);
+hold on
+% taken from houghline docs
+max_len = 0;
+for k = 1:length(lines)
+   xy = [lines(k).point1; lines(k).point2];
+   plot(xy(:,1),xy(:,2),'LineWidth',2,'Color','green');
+   
+   % Plot beginnings and ends of lines
+   plot(xy(1,1),xy(1,2),'x','LineWidth',2,'Color','yellow');
+   plot(xy(2,1),xy(2,2),'x','LineWidth',2,'Color','red');
 
-%% Find overall shortest distance for all lines.
+   % Determine the endpoints of the longest line segment
+   len = norm(lines(k).point1 - lines(k).point2);
+   if ( len > max_len)
+      max_len = len;
+      xy_long = xy;
+   end
+end
+hold off
 
+%% Hough Transform & get lines based on peaks. 
+% Find overall shortest distance for all lines.
 for k = 1:length(lines)
     line = lines(k); 
     % Find XY_RHO - Create perpendicular triangle and calculate XY for
@@ -94,57 +111,84 @@ end
 [distShortest, index] = min([distLineShortest(:).dist]);
 angleShortest = distLineShortest(index).angle;
 
-
-%% Find range between two points
-X = [0,0;-0.5188,3.82];
-Angle = []
-dist = pdist(X, 'euclidean'); 
-
-%% Function to extract range-angle coordinate
-% Robot range to wall 
-% Angle between robot heading & wall 
-
-function [mat] = scale(cart)
-    gridSize = 100; 
-    x = cart(:,2); % x-position
-    d = cart(:,1); % depth
-
-    xoffset = min(x); 
-    xscale = (max(x)-min(x)); 
-
-    xi = (x - xoffset)/xscale; % normalize data 0-1;
-    xi = round(xi*(gridSize-1))+1; 
-
-    doffset = min(d); 
-    dscale = (max(d)-min(d));
-
-    di = (d - doffset)/dscale; 
-    di = round(di*(gridSize-1))+1; 
-    ind = sub2ind([gridSize gridSize], xi, di); 
-
-    mat = zeros(gridSize); 
-    mat(ind) = 1; 
-end
-
+%%
 % Function to get distance to wall
 % Robot angle between wall and x-axis 
 function lines = getObstacleInformation(cart)
-[H, theta, rho] = hough(cart);
-minPeakThreshold = 0.1;
-minLineThreshold = 5; 
+
+[mat, xscale, xoffset, dscale, doffset] = scale(cart);
+[H, theta, rho] = hough(mat);
+minPeakThreshold = 2;
+minLineThreshold = 15; 
 
 numpeaks = 15;
 hPeaks = houghpeaks(H, numpeaks, 'Threshold', minPeakThreshold); 
 
 % Get lines 
-lines = houghlines(cart,theta,rho,hPeaks,'FillGap',5,'MinLength',minLineThreshold);
+lineScaled = houghlines(mat,theta,rho,hPeaks,'FillGap',5,'MinLength',minLineThreshold);
+lines = reScaleCoor(lineScaled,xscale, xoffset, dscale, doffset);
+end
 
-% Show lines
-%imshow(cart), hold on,
-%for k = 1:length(lines)
-%   xy = [lines(k).point1; lines(k).point2];
-%   plot(xy(:,1),xy(:,2),'LineWidth',2,'Color','green');
-%end
+%%from class demo
+function [mat, xscale, xoffset, dscale, doffset] = scale(cart)
+x = cart(:,2);
+d = cart(:,1);
+N = 100; % grid size
+
+xoffset = min(x);
+xscale = (max(x)-min(x));
+xi = (x - xoffset)/xscale; % scale to 0-1
+xi = round(xi*(N-1))+1; % scale and integer 1 to N
+doffset = min(d);
+dscale = (max(d)-min(d));
+di = (d - doffset)/dscale; % scale to 0-1
+di = round(di*(N-1))+1;
+ind = sub2ind([N N], xi, di); % matrix indices
+
+mat = zeros(N); % NxN matrix
+mat(ind) = 1; % with points..
+%imshow(mat), colorbar()  
+end
+
+function lines = reScaleCoor(lines,xscale, xoffset, dscale, doffset)
+N = 100; % grid size
+for k = 1:length(lines)
+    line = lines(k);
+    line.point1 = flip(line.point1, 2);
+    line.point2 = flip(line.point2, 2);
+    line.point1(1) = ((line.point1(1)-1)/(N-1))*xscale+xoffset;
+    line.point1(2) = ((line.point1(2)-1)/(N-1))*dscale+doffset;
+    
+    line.point2(1) = ((line.point2(1)-1)/(N-1))*xscale+xoffset;
+    line.point2(2) = ((line.point2(2)-1)/(N-1))*dscale+doffset;
+    
+    a = (line.point2(2)-line.point1(2))/(line.point2(1)-line.point1(1));
+    
+    %% taken from https://se.mathworks.com/matlabcentral/answers/70287-to-find-intersection-point-of-two-lines
+    %line1
+    x1  = [line.point1(1) line.point2(1)];
+    y1  = [line.point1(2) line.point2(2)];
+    %line2
+    x2 = [-10 0 10];
+    y2 = [10/a 0 -10/a];
+    %fit linear polynomial
+    p1 = polyfit(x1,y1,1);
+    p2 = polyfit(x2,y2,1);
+    if(line.point1(1) == line.point2(1) )
+        line.rho = line.point2(1);
+        line.theta = 0;
+    elseif(line.point1(2) == line.point2(2) )
+        line.rho = line.point2(2);
+        line.theta = 90;
+    else
+        x_intersect = fzero(@(x) polyval(p1-p2,x),3);
+        y_intersect = polyval(p1,x_intersect);
+        line.rho = hypot(x_intersect,y_intersect);
+        line.theta = atan2d(x_intersect, y_intersect);
+    end
+    lines(k) = line;
+end
+  
 end
 
 
