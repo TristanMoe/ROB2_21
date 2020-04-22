@@ -1,19 +1,16 @@
 %% Initiate 
 rosshutdown
-setenv('ROS_MASTER_URI','http://192.168.1.200:11311')
-setenv('ROS_IP','192.168.1.100')
-rosinit('http://192.168.1.200:11311','NodeHost','192.168.1.50');
+
+% !!! REMEMBER TO CHANGE IP BASED ON HOST !!!c
+setenv('ROS_MASTER_URI','http://127.0.0.1:11345')
+setenv('ROS_IP','192.168.87.106')
+rosinit('http://192.168.124.128:11311','NodeHost','192.168.87.106');
+
 
 %% Makemap 
-<<<<<<< HEAD
 %map = openfig('map.fig');
-map = makemap(10);
-=======
-map = openfig('map.fig');
-%map = makemap(10); %MAKE SURE TO CHECK map.fig if the line above
+map = makemap(10); %MAKE SURE TO CHECK map.fig if the line above
 %does not work and create map with the same look
->>>>>>> 704f4d05b6f63dd17e0e6765677d9128904f7b89
-
 %% Subscribe to robot position and resets odometer
 odom = rossubscriber('/odom');
 [pub,msg] = rospublisher('/mobile_base/commands/reset_odometry','std_msgs/Empty');
@@ -31,8 +28,8 @@ pose = odomdata.Pose.Pose;
 
 %% Setting path with either DXForm or with hardcoded path
 useHardCodedPath = true; %change to false to use DXForm algorithm
-start = [3 3]; 
-goal = [3 5]; 
+start = [0 0]; 
+goal = [30 80]; 
 dx = DXform(map);
 dx.plan(goal); 
 path = dx.query(start, 'animate'); 
@@ -73,18 +70,16 @@ while(distanceToGoal >= goalRadius)
     distanceToGoal = norm(poseVector(1:2) - goal); 
 end
 
-<<<<<<< HEAD
 %% Path simulering 
 goal = [120,80];
 start = [45,10]; 
 dx = Dstar(map);
-=======
 %% Simulering med DXForm (can be run independent of above code)
 map = makemap(100);
 goal = [10,10];
 start = [50,50]; 
 dx = DXform(map);
->>>>>>> 704f4d05b6f63dd17e0e6765677d9128904f7b89
+
 dx.plan(goal); 
 path = dx.query(start, 'animate');
 
