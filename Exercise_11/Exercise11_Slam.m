@@ -1,14 +1,16 @@
 %% Initiate 
 rosshutdown
-
+%% 
 % !!! REMEMBER TO CHANGE IP BASED ON HOST !!!
-setenv('ROS_MASTER_URI','http://127.0.0.1:11345')
-setenv('ROS_IP','192.168.87.106')
-rosinit('http://192.168.124.128:11311','NodeHost','192.168.87.106');
-
+setenv('ROS_MASTER_URI','http://192.168.80.128:11345')
+setenv('ROS_IP','192.168.1.149')
+rosinit('http://192.168.80.128:11311','NodeHost','192.168.1.149');
+%% 
 % Substribe to odometer and laser scanner. 
 laserSub = rossubscriber('/scan');
 odomSub = rossubscriber('/odom');
+[pub,msg] = rospublisher('/mobile_base/commands/reset_odometry','std_msgs/Empty');
+send(pub,msg);
 
 % Create publisher for sender velocity commands 
 [velPub,velMsg] = ...
@@ -24,70 +26,84 @@ robot = rospublisher('/mobile_base/commands/velocity');
 velmsg = rosmessage(robot);
 
 
-%% Load map 
-load('officemap.mat');
-show(map);
+%% Create Occupancy Map from Shannon
+image = imread('shannon.png');
+imshow(image)
 
-start = [0 0]; 
-goal = [5 0]; 
+%% Convert to grayscale and black and white image
+grayimage = rgb2gray(image);
+bwimage = grayimage < 220;
 
-dx = DXform(map);
+%% 
+
+entreM2 = 9.9;
+pixelWidth = 57;
+pixelLength = 139;
+res = 139/57;
+WidthInMeter = sqrt(9.9/res);
+pixelToMeterRatio = pixelWidth/WidthInMeter;
+%%
+
+% Lab is 52.2 m2 and image-lab is 99px x 265 px
+% Entire image = 1540px x 701px
+% 265 / 99 = 2.67
+% 1x * 2.45x = 55.2 m2, x = 4.74m
+% cells to meter ratio = 99px / 4.74m = 20.88
+gridWidth = 10;
+map = robotics.BinaryOccupancyGrid(bwimage, 20.88);
+grid = flipud(getOccupancy(map));
+se = strel('square',gridWidth);
+gridAfterDialate = imdilate(grid,se);
+imshow(gridAfterDialate);
+
+
+
+%grid = flipud(getOccupancy(map));
+%se = strel('square',gridWidth);
+%gridAfterDialate = imdilate(grid,se);
+
+%%
+
+
+start = [1119 581]; 
+goal = [100 300]; 
+
+dx = DXform(gridAfterDialate);
 dx.plan(goal);
 path = dx.query(start, 'animate'); 
-
+path = path/map.Resolution; 
 % Set movement properties
 goalRadius = 1; 
 
-distanceToGoal = norm(start - goalRadius); 
+distanceToGoal = norm(start/map.Resolution - goalRadius); 
 
 %% Set Controller 
-Set controller
 controller = robotics.PurePursuit;
 controller.Waypoints = path; 
 controller.DesiredLinearVelocity = 0.2; 
 controller.MaxAngularVelocity = 1; 
 controller.LookaheadDistance = 0.2;
 
-%% Example 
-maxLidarRange = 8; % meters
-mapResolution = 20; % cells per meters
-slamAlg = robotics.LidarSLAM(mapResolution, maxLidarRange);
-
-% Tradeoffs - see documentation 
-slamAlg.LoopClosureThreshold = 210;  
-slamAlg.LoopClosureSearchRadius = 8;
 
 % Loop - scan, drive.
-for i=1:10
-    % Get scan
-    scanMsg = receive(laserSub);
-    scan = lidarScan(scanMsg); 
+while(distanceToGoal >= goalRadius)
+    % Get turtlebot pose 
+    odomdata = receive(odomSub, 2); 
+    pose = odomdata.Pose.Pose;
+    quat = pose.Orientation;
+    angles = quat2eul([quat.W quat.X quat.Y quat.Z]);
+    %theta = rad2deg(angles(1));
+    poseVector = [pose.Position.X+start(1)/map.Resolution, pose.Position.Y+start(2)/map.Resolution, angles(1)];
     
-    % Drive a bit 
-    velmsg.Linear.X = 0.3; 
-    velmsg.Angular.Z = 0.2;  
+    % Get new values for robot
+    [linVel, angVel, targetDir] = controller(poseVector);   
+    % Pass new information to turtlebot. 
+    velmsg.Linear.X = linVel; 
+    velmsg.Angular.Z = angVel;       
     send(robot, velmsg); 
-    
-    [isScanAccepted, loopClosureInfo, optimizationInfo] = addScan(slamAlg, scan);
-    if isScanAccepted
-        fprintf('Added scan %d \n', i);
-    end    
+    distanceToGoal = norm(poseVector(1:2) - goal/map.Resolution);  
 end
 
-% create new map for path algoritm. 
-figure;
-show(slamAlg);
-title({'Map of the Environment','Pose Graph for Initial 10 Scans'});
-
-[scans, optimizedPoses]  = scansAndPoses(slamAlg);
-map = buildMap(scans, optimizedPoses, mapResolution, maxLidarRange);
-
-figure; 
-show(map);
-hold on
-show(slamAlg.PoseGraph, 'IDs', 'off');
-hold off
-title('Occupancy Grid Map Built Using Lidar SLAM');
 
 
 

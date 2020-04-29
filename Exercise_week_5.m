@@ -3,8 +3,8 @@ rosshutdown
 
 % !!! REMEMBER TO CHANGE IP BASED ON HOST !!!c
 setenv('ROS_MASTER_URI','http://127.0.0.1:11345')
-setenv('ROS_IP','192.168.87.106')
-rosinit('http://192.168.124.128:11311','NodeHost','192.168.87.106');
+setenv('ROS_IP','http://192.168.1.107')
+rosinit('http://192.168.80.129:11311','NodeHost','192.168.1.107');
 
 
 %% Makemap 
