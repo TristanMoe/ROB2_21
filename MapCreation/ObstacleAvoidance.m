@@ -16,7 +16,8 @@ odomSub = rossubscriber('/odom');
 
 %% Set up controller for VFH
 vfh = setUpVFHController(); 
-% Avoid obstacle and optain current steering direction 
+% Avoid obstacle and optain current steering direction
+targetDir = 0; 
 currentSteerDir = avoidObstacle(vfh, targetDir, 5, laserSub, velPub, velMsg); 
 rosshutdown
 
