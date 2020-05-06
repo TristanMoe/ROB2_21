@@ -1,8 +1,12 @@
+%% Gray scale object detection example
 clear
 
-image = imread('C:\Users\Holme\Desktop\6_semester\ROB2\NyeRepo\GreenCicle\green.JPG');
+image = imread('C:\Users\Holme\Desktop\6_semester\ROB2\NyeRepo\GreenCicle\IMG1.JPG');
+%image = imread('green.JPG');
+%imshow(image)
 
-m1lab = filterImage(image);
+m1lab = filterImage(image); % TODO: Fix filtering
+%imagesc(m1lab)
 
 m1prop = regionprops(m1lab, 'Eccentricity', 'Centroid'); 
 
@@ -46,26 +50,26 @@ function [greenCircleDetected, xCoordinate] = detectGreenCircle(m1prop, image)
         
     if(green > blue && green > red && isCircle)
         greenCircleDetected = true;
-        disp("Green cicle detected")
+        disp("                         Green cicle detected")
     else
         disp("Circle was not green")
     end
 end
 
-function m1lab = filterImage(image)
+function m1lab = filterImage(image) %TODO: This needs to be fixed
     m1g = rgb2gray(image);
     figure
     imagesc(m1g), colorbar
     
-    m1b = m1g < 130;
+    m1b = m1g < 150;
     figure
     imagesc(m1b)
     
-    m1bd = imclose(m1b, strel('disk', 10)); % TODO: Test and tune
+    m1bd = imclose(m1b, strel('disk', 5)); % TODO: Must be tuned
     figure
     imagesc(m1bd)
     
-    m1be = bwpropfilt(m1bd, 'Area', [0 2000000]); % TODO: Test and tune
+    m1be = bwpropfilt(m1bd, 'Area', [0 2000000]);
     figure
     imagesc(m1be)
     
