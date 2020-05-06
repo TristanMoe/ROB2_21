@@ -188,12 +188,13 @@ amcl.InitialCovariance = eye(3)*0.5;
 
 end 
 
-function [isUpdated, estimatedPose, estimatedCovariance, numberOfIterations] = runACML(scanMsg, pose,numberOfIterations)
+function [isUpdated, estimatedPose, estimatedCovariance] = runACML(scanMsg, pose)
 scan = lidarScan(scanMsg);
 [isUpdated, estimatedPose, estimatedCovariance] = amcl(pose, scan);
+i=0;
 if isUpdated
-    numberOfIterations = numberOfIterations + 1;
-    plotStep(visualizationHelper, amcl, estimatedPose, scan, numberOfIterations);
+    i = i + 1;
+    plotStep(visualizationHelper, amcl, estimatedPose, scan, i);
 end    
 end
 
