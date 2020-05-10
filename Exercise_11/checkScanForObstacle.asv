@@ -1,0 +1,64 @@
+function [setup, avoiding, check] = obstacleFunktions()
+
+function [isObstacle] = checkScanForObstacle(lidarScan, minRange, maxRange, minAngle, maxAngle)
+    scanLimited = removeInvalidData(lidarScan, 'RangeLimits', [minRange, maxRange], 'AngleLimits', [minAngle, maxAngle]); 
+    if (scanLimited.Count == 0) 
+        isObstacle = 1;
+    else 
+        isObstacle = 0;
+    end
+end 
+
+% Setup the controller with adjusted parameters. 
+function [vfh] = setUpVFHController()
+% https://www.mathworks.com/help//ros/ug/obstacle-avoidance-with-turtlebot-and-vfh.html
+vfh = controllerVFH;
+vfh.UseLidarScan = true;
+% Set this weight to find most optimal path. 
+
+% Limit for range readings. Used to ignore obstacles that are too far from
+% the vehicle. 
+vfh.DistanceLimits = [0.5 1];
+
+% Radius of actual robot! 
+vfh.RobotRadius = 0.3;
+
+vfh.MinTurningRadius = 0.1;
+
+% Meters around the robot which should be avoided! 
+vfh.SafetyDistance = 0.1;
+end 
+
+% Calculate obstacle free steering direction. 
+function [steerDir] = avoidObstacle(controllerVFH, targetDir, length, laserSub, velPub, velMsg) 
+    % https://www.mathworks.com/help//nav/ref/ratecontrol.html
+    % Loop frequency. 
+    rate = rateControl(10);
+
+    while rate.TotalElapsedTime < length
+        
+        % Get laser scan data
+        laserScan = receive(laserSub);
+        ranges = double(laserScan.Ranges);
+        angles = double(laserScan.readScanAngles);        
+ 
+        % Create a lidarScan object from the ranges and angles
+        scan = lidarScan(ranges,angles);     
+        
+        steerDir = controllerVFH(scan, targetDir);           
+    
+        % Calculate velocities
+        if ~isnan(steerDir) % If steering direction is valid
+            desiredV = 0.2;
+            w = exampleHelperComputeAngularVelocity(steerDir, 1);
+        else % Stop and search for valid direction
+            desiredV = 0.0;
+            w = 0.5;
+        end
+
+        % Assign and send velocity commands
+        velMsg.Linear.X = desiredV;
+        velMsg.Angular.Z = w;
+        velPub.send(velMsg);
+    end   
+end 

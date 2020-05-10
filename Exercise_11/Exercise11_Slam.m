@@ -1,5 +1,7 @@
 %% Initiate 
 rosshutdown
+close all
+[checkScanForObstacle, avoidObstacle, setUpVFHController, getPoseVector, runAMCL] = obstacleFunctions();
 %% 
 % !!! REMEMBER TO CHANGE IP BASED ON HOST !!!
 setenv('ROS_MASTER_URI','http://192.168.80.128:11345')
@@ -49,7 +51,7 @@ pixelToMeterRatio = pixelWidth/WidthInMeter;
 % 265 / 99 = 2.67
 % 1x * 2.45x = 55.2 m2, x = 4.74m
 % cells to meter ratio = 99px / 4.74m = 20.88
-gridWidth = 20;
+gridWidth = 25;
 grid = flipud(bwimage);
 se = strel('square',gridWidth);
 gridAfterDialate = imdilate(grid,se);
@@ -58,7 +60,7 @@ imshow(gridAfterDialate);
 %%
 
 start = [1105 567]; 
-goal = [100 300]; 
+goal = [150 200]; 
 
 dx = DXform(gridAfterDialate);
 dx.plan(goal);
@@ -80,37 +82,45 @@ amcl = setupAMCL(map, initialPose);
 %% Setup Helper for Vizualization and Driving Turtlebot
 visualizationHelper = ExampleHelperAMCLVisualization(map);
 
-%% Set Controller 
+%% Set PurePuresuitController 
 controller = robotics.PurePursuit;
 controller.Waypoints = path; 
-controller.DesiredLinearVelocity = 0.4; 
-controller.MaxAngularVelocity = 1; 
-controller.LookaheadDistance = 2;
+controller.DesiredLinearVelocity = 0.8; 
+controller.MaxAngularVelocity = 1.5; 
+controller.LookaheadDistance = 1.5;
 
+%% Set VFHController
+vfhController = setUpVFHController();
+minRangeObstacleDetect = 0;
+maxRangeObstacleDetect = 1.2;
+angleIntervalThreshold = 0.1;
 
 % Loop - scan, drive.
 i=0;
-roundsBeforeLocationAlg=0;
 while(distanceToGoal >= goalRadius)
-    % Get turtlebot pose 
-    odomdata = receive(odomSub, 2); 
-    pose = odomdata.Pose.Pose;
-    quat = pose.Orientation;
-    angles = quat2eul([quat.W quat.X quat.Y quat.Z]);
-    %theta = rad2deg(angles(1));
-    poseVector = [pose.Position.X+startInMeters(1), pose.Position.Y+startInMeters(2), angles(1)];
-    [estimatedPose, estimatedCovariance, i] = runAMCL(amcl, laserSub,poseVector, i, visualizationHelper);
+    poseVector = getPoseVector(odomSub, startInMeters);
+    scanMsg = receive(laserSub);
+    scan = lidarScan(scanMsg);
+    [estimatedPose, estimatedCovariance, i] = runAMCL(amcl, scan,poseVector, i, visualizationHelper);
     % Get new values for robot
-    roundsBeforeLocationAlg = roundsBeforeLocationAlg +1;
-    if(roundsBeforeLocationAlg < 10)
-        estimatedPose = poseVector;
-    end
-    [linVel, angVel, targetDir] = controller(estimatedPose); 
     
-    % Pass new information to turtlebot. 
-    velmsg.Linear.X = linVel; 
-    velmsg.Angular.Z = angVel;       
-    send(robot, velmsg); 
+    isObstacle = checkScanForObstacle(scan, minRangeObstacleDetect, maxRangeObstacleDetect, ...
+    angleIntervalThreshold);
+
+    if(isObstacle)
+        isObstacle
+        [steerDir, numberOfIterations] = avoidObstacle(vfhController, ...
+            0, 4, laserSub, robot, velMsg,...
+            odomSub, startInMeters, amcl,i, visualizationHelper);
+        i = numberOfIterations;
+    else
+        % Pass new information to turtlebot.
+        [linVel, angVel, targetDir] = controller(estimatedPose); 
+        velmsg.Linear.X = linVel; 
+        velmsg.Angular.Z = angVel;
+        send(robot, velmsg);
+    end 
+            
     distanceToGoal = norm(poseVector(1:2) - goal/map.Resolution);  
 end
 
@@ -169,15 +179,5 @@ amcl.InitialCovariance = eye(3)*0.5;
 
 end 
 
-function [estimatedPose, estimatedCovariance, numberOfIterations] = runAMCL(amcl, laserSub, pose,numberOfIterations, visualizationHelper)
-scanMsg = receive(laserSub);
-scan = lidarScan(scanMsg);
-plot(scan);
-[isUpdated, estimatedPose, estimatedCovariance] = amcl(pose, scan);
-if isUpdated
-    numberOfIterations = numberOfIterations + 1;
-    plotStep(visualizationHelper, amcl, estimatedPose, scan, numberOfIterations);
-end    
-end
 
 
