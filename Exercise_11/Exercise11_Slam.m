@@ -49,18 +49,11 @@ pixelToMeterRatio = pixelWidth/WidthInMeter;
 % 265 / 99 = 2.67
 % 1x * 2.45x = 55.2 m2, x = 4.74m
 % cells to meter ratio = 99px / 4.74m = 20.88
-gridWidth = 10;
-map = robotics.BinaryOccupancyGrid(bwimage, 20.88);
-grid = flipud(getOccupancy(map));
+gridWidth = 20;
+grid = flipud(bwimage);
 se = strel('square',gridWidth);
 gridAfterDialate = imdilate(grid,se);
 imshow(gridAfterDialate);
-
-
-
-%grid = flipud(getOccupancy(map));
-%se = strel('square',gridWidth);
-%gridAfterDialate = imdilate(grid,se);
 
 %%
 
@@ -77,9 +70,7 @@ goalRadius = 1;
 distanceToGoal = norm(start/map.Resolution - goalRadius); 
 
 %% localizationSetup
-se = strel('square',gridWidth);
-gridAfterDialate = imdilate(bwimage,se);
-map = robotics.BinaryOccupancyGrid(gridAfterDialate, 20.88);
+map = robotics.BinaryOccupancyGrid(bwimage, 22.5); %%this is changed to map instead of grid dialate
 startInMeters = start/map.Resolution;
 
 initialPose = [startInMeters(1) startInMeters(2) 0]; 
@@ -92,13 +83,14 @@ visualizationHelper = ExampleHelperAMCLVisualization(map);
 %% Set Controller 
 controller = robotics.PurePursuit;
 controller.Waypoints = path; 
-controller.DesiredLinearVelocity = 0.2; 
+controller.DesiredLinearVelocity = 0.4; 
 controller.MaxAngularVelocity = 1; 
-controller.LookaheadDistance = 0.2;
+controller.LookaheadDistance = 2;
 
 
 % Loop - scan, drive.
 i=0;
+roundsBeforeLocationAlg=0;
 while(distanceToGoal >= goalRadius)
     % Get turtlebot pose 
     odomdata = receive(odomSub, 2); 
@@ -109,7 +101,12 @@ while(distanceToGoal >= goalRadius)
     poseVector = [pose.Position.X+startInMeters(1), pose.Position.Y+startInMeters(2), angles(1)];
     [estimatedPose, estimatedCovariance, i] = runAMCL(amcl, laserSub,poseVector, i, visualizationHelper);
     % Get new values for robot
-    [linVel, angVel, targetDir] = controller(estimatedPose);   
+    roundsBeforeLocationAlg = roundsBeforeLocationAlg +1;
+    if(roundsBeforeLocationAlg < 10)
+        estimatedPose = poseVector;
+    end
+    [linVel, angVel, targetDir] = controller(estimatedPose); 
+    
     % Pass new information to turtlebot. 
     velmsg.Linear.X = linVel; 
     velmsg.Angular.Z = angVel;       
@@ -125,7 +122,7 @@ odometryModel.Noise = [0.2 0.2 0.2 0.2];
 % Link: https://se.mathworks.com/help/nav/ref/likelihoodfieldsensormodel.html
 rangeFinderModel = robotics.LikelihoodFieldSensorModel;
 % Min, Max of sensor readings.
-rangeFinderModel.SensorLimits = [0.45 8];
+rangeFinderModel.SensorLimits = [0.45 10];
 % Occupancy map used for computing likelihood field.
 rangeFinderModel.Map = map;
 
