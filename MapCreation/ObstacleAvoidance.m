@@ -10,6 +10,9 @@ rosinit('http://192.168.124.128:11311','NodeHost','192.168.87.106');
 laserSub = rossubscriber('/scan');
 odomSub = rossubscriber('/odom');
 
+% Subscribe to bumper 
+bumpSub = rossubscriber('/mobile_base/sensors/bumper_pointcloud', 'BufferSize', 5);
+
 % Create publisher for sender velocity commands 
 [velPub,velMsg] = ...
     rospublisher('/mobile_base/commands/velocity');
@@ -23,8 +26,8 @@ rosshutdown
 
 % If anything is registrered in range interval, function returns 1 else 0. 
 % Activate VFH if there is obstacle within 1 meter. 
-function [isObstacle] = checkScanForObstacle(lidarScan, minRange, maxRange)
-    scanLimited = removeInvalidData(lidarScan, 'RangeLimits', [minRange, maxRange]); 
+function [isObstacle] = checkScanForObstacle(lidarScan, minRange, maxRange, minAngle, maxAngle)
+    scanLimited = removeInvalidData(lidarScan, 'RangeLimits', [minRange, maxRange], 'AngleLimits', [minAngle, maxAngle]); 
     if (scanLimited.Count == 0) 
         isObstacle = 1;
     else 
@@ -39,7 +42,7 @@ vfh = controllerVFH;
 vfh.UseLidarScan = true;
 % Set this weight to find most optimal path. 
 
-% Limit for range readings. Used to ingore obstacles that are too far from
+% Limit for range readings. Used to ignore obstacles that are too far from
 % the vehicle. 
 vfh.DistanceLimits = [0.5 1];
 
