@@ -1,10 +1,47 @@
+%% Initiate 
 clear
+rosshutdown
 
+setenv('ROS_MASTER_URI','http://192.168.203.128:11311')
+setenv('ROS_IP','84.238.65.133')
+rosinit('http://192.168.203.128:11311','NodeHost','84.238.65.133');
+
+% For test on local file
 image = imread('C:\Users\Holme\Desktop\6_semester\ROB2\NyeRepo\GreenCicle\green.JPG');
 
-m1lab = filterImage(image);
+cameraSub = rossubscriber('/camera/rgb/image_raw');
 
-m1prop = regionprops(m1lab, 'Eccentricity', 'Centroid'); 
+msg = receive(cameraSub);
+
+%Get msg details
+imgData = msg.Data;
+imgH = msg.Height;
+imgW = msg.Width;
+
+%Create blank image output with required size
+img = zeros(msg.Width,msg.Height,3);
+img_rot = imrotate(img, 90);
+
+%Reshape image data
+imgR = reshape(imgData(1:3:end),imgW,imgH)';
+imgG = reshape(imgData(2:3:end),imgW,imgH)';
+imgB = reshape(imgData(3:3:end),imgW,imgH)';
+img_rot(:,:,1) = imgR;
+img_rot(:,:,2) = imgG;
+img_rot(:,:,3) = imgB;
+figure
+imagesc(img_rot), colorbar
+
+% Check bumper med simulering
+
+%% do the thing - DOES NOT WORK WITH ROS IMAGE FOR SOME REASON
+figure
+imshow(img_rot)
+
+%m1lab = filterImage(img_rot); % Filtering does not work properly with ROS image
+m1lab = img_rot;
+
+m1prop = regionprops(m1lab, 'Eccentricity', 'Centroid'); %TODO: This is not good..
 
 xCoordinate = 0;  % Of circle center
 pixelsOnXAxis = 640; % Resolution is 640*480
@@ -12,7 +49,7 @@ middleOfXAxis = pixelsOnXAxis/2;
 
 if ~isempty(m1prop)
     for i = 1 : size(m1prop, 1)
-        [greenCircleDetected, xCoordinate] = detectGreenCircle(m1prop(i), image);
+        [greenCircleDetected, xCoordinate] = detectGreenCircle(m1prop(i), img_rot);
         if greenCircleDetected
             if xCoordinate < middleOfXAxis
                 disp("I need to turn left")
