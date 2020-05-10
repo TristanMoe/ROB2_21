@@ -61,10 +61,13 @@ imshow(gridAfterDialate);
 %grid = flipud(getOccupancy(map));
 %se = strel('square',gridWidth);
 %gridAfterDialate = imdilate(grid,se);
-
+%%
+initialPose = ExampleHelperAMCLGazeboTruePose; %TODO REMOVE ONLY FOR TEST
 %%
 
-start = [1105 567]; 
+%start = [1119 581]; 
+%goal = [100 300]; 
+start = [1119 581]; 
 goal = [100 300]; 
 
 dx = DXform(gridAfterDialate);
@@ -82,7 +85,7 @@ gridAfterDialate = imdilate(bwimage,se);
 map = robotics.BinaryOccupancyGrid(gridAfterDialate, 20.88);
 startInMeters = start/map.Resolution;
 
-initialPose = [startInMeters(1) startInMeters(2) 0]; 
+%initialPose = [startInMeters(1) startInMeters(2) 0]; 
 
 amcl = setupAMCL(map, initialPose);
 
