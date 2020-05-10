@@ -30,7 +30,7 @@ vfh.UseLidarScan = true;
 
 % Limit for range readings. Used to ignore obstacles that are too far from
 % the vehicle. 
-vfh.DistanceLimits = [0.05 1];
+vfh.DistanceLimits = [0.05 1.5];
 
 % Radius of actual robot! 
 vfh.RobotRadius = 0.3;
@@ -62,14 +62,14 @@ numberOfIterations, visualizationHelper)
         
         [estimatedPose, estimatedCovariance,numberOfIterations] = runAMCL(amcl, scan, poseVector,numberOfIterations, visualizationHelper);
         
-        steerDir = controllerVFH(scan, targetDir); 
+        steerDir = controllerVFH(scan, targetDir-estimatedPose(3)); 
         figure(4);
         show(controllerVFH);
     
         % Calculate velocities
         if ~isnan(steerDir) % If steering direction is valid
             desiredV = 0.2;
-            w = exampleHelperComputeAngularVelocity(steerDir, 1);
+            w = exampleHelperComputeAngularVelocity(steerDir, 0.5);
         else % Stop and search for valid direction
             desiredV = 0.0;
             w = 0.5;

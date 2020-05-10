@@ -85,7 +85,7 @@ visualizationHelper = ExampleHelperAMCLVisualization(map);
 %% Set PurePuresuitController 
 controller = robotics.PurePursuit;
 controller.Waypoints = path; 
-controller.DesiredLinearVelocity = 0.8; 
+controller.DesiredLinearVelocity = 0.6; 
 controller.MaxAngularVelocity = 1.5; 
 controller.LookaheadDistance = 1.5;
 
@@ -93,7 +93,7 @@ controller.LookaheadDistance = 1.5;
 vfhController = setUpVFHController();
 minRangeObstacleDetect = 0;
 maxRangeObstacleDetect = 1.2;
-angleIntervalThreshold = 0.1;
+angleIntervalThreshold = 0.15;
 
 % Loop - scan, drive.
 i=0;
@@ -110,7 +110,7 @@ while(distanceToGoal >= goalRadius)
     if(isObstacle)
         isObstacle
         [steerDir, numberOfIterations] = avoidObstacle(vfhController, ...
-            0, 4, laserSub, robot, velMsg,...
+            estimatedPose(3), 10, laserSub, robot, velMsg,...
             odomSub, startInMeters, amcl,i, visualizationHelper);
         i = numberOfIterations;
     else
@@ -121,7 +121,7 @@ while(distanceToGoal >= goalRadius)
         send(robot, velmsg);
     end 
             
-    distanceToGoal = norm(poseVector(1:2) - goal/map.Resolution);  
+    distanceToGoal = norm(estimatedPose(1:2) - goal/map.Resolution);  
 end
 
 function [amcl] = setupAMCL(map, initialPose)
