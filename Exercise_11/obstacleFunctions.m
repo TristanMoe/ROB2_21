@@ -38,7 +38,7 @@ vfh.RobotRadius = 0.3;
 vfh.MinTurningRadius = 0.1;
 
 % Meters around the robot which should be avoided! 
-vfh.SafetyDistance = 0.1;
+vfh.SafetyDistance = 0.5;
 end 
 
 % Calculate obstacle free steering direction. 

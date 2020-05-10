@@ -18,10 +18,6 @@ send(pub,msg);
 [velPub,velMsg] = ...
     rospublisher('/mobile_base/commands/velocity','geometry_msgs/Twist');
 
-% Receive laser scan and odometry message.
-scanMsg = receive(laserSub);
-odompose = odomSub.LatestMessage;
-scan = lidarScan(scanMsg); 
 
 % Subscribe to velocity  
 robot = rospublisher('/mobile_base/commands/velocity');

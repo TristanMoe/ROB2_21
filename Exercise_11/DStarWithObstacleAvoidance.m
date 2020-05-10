@@ -1,14 +1,8 @@
-%% Initiate 
-rosshutdown
-close all
-[checkScanForObstacle, avoidObstacle, setUpVFHController, getPoseVector, runAMCL] = obstacleFunctions();
-%% 
-% !!! REMEMBER TO CHANGE IP BASED ON HOST !!!
-setenv('ROS_MASTER_URI','http://192.168.80.128:11345')
-setenv('ROS_IP','192.168.1.107')
-rosinit('http://192.168.80.128:11311','NodeHost','192.168.1.107');
-%% 
-% Substribe to odometer and laser scanner. 
+function [estimatedPose] = DStarWithObstacleAvoidance(startPixel, stopPixel, pixelToMeter, startTheta)
+[checkScanForObstacle, avoidObstacle, setUpVFHController, getPoseVector, runAMCL] = ...
+    obstacleFunctions();
+    % Substribe to odometer and laser scanner. 
+    
 laserSub = rossubscriber('/scan');
 odomSub = rossubscriber('/odom');
 [pub,msg] = rospublisher('/mobile_base/commands/reset_odometry','std_msgs/Empty');
@@ -32,14 +26,6 @@ imshow(image)
 grayimage = rgb2gray(image);
 bwimage = grayimage < 220;
 
-%% 
-
-entreM2 = 9.9;
-pixelWidth = 57;
-pixelLength = 139;
-res = 139/57;
-WidthInMeter = sqrt(9.9/res);
-pixelToMeterRatio = pixelWidth/WidthInMeter;
 %%
 
 % Lab is 52.2 m2 and image-lab is 99px x 265 px
@@ -54,9 +40,10 @@ gridAfterDialate = imdilate(grid,se);
 imshow(gridAfterDialate);
 
 %%
+map = robotics.BinaryOccupancyGrid(bwimage, pixelToMeter); 
 
-start = [1105 567]; 
-goal = [150 200]; 
+start = startPixel; 
+goal = stopPixel; 
 
 dx = DXform(gridAfterDialate);
 dx.plan(goal);
@@ -68,10 +55,10 @@ goalRadius = 1;
 distanceToGoal = norm(start/map.Resolution - goalRadius); 
 
 %% localizationSetup
-map = robotics.BinaryOccupancyGrid(bwimage, 22.5); %%this is changed to map instead of grid dialate
+
 startInMeters = start/map.Resolution;
 
-initialPose = [startInMeters(1) startInMeters(2) 0]; 
+initialPose = [startInMeters(1) startInMeters(2) startTheta]; 
 
 amcl = setupAMCL(map, initialPose);
 
@@ -106,7 +93,7 @@ while(distanceToGoal >= goalRadius)
     if(isObstacle)
         isObstacle
         [steerDir, numberOfIterations] = avoidObstacle(vfhController, ...
-            estimatedPose(3), 10, laserSub, robot, velMsg,...
+            estimatedPose(3), 20, laserSub, robot, velMsg,...
             odomSub, startInMeters, amcl,i, visualizationHelper);
         i = numberOfIterations;
     else
@@ -119,6 +106,9 @@ while(distanceToGoal >= goalRadius)
             
     distanceToGoal = norm(estimatedPose(1:2) - goal/map.Resolution);  
 end
+end
+
+
 
 function [amcl] = setupAMCL(map, initialPose)
 
@@ -174,6 +164,3 @@ amcl.InitialPose = initialPose;
 amcl.InitialCovariance = eye(3)*0.5;
 
 end 
-
-
-
