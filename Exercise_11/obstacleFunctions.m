@@ -9,11 +9,11 @@ end
 function [isObstacle] = checkScanForObstacle(lidarScan, minRange, maxRange, angleInterval)
     scanLimited = removeInvalidData(lidarScan, 'RangeLimits', [minRange, maxRange], ...
     'AngleLimits', [-angleInterval, angleInterval]); 
-    figure(10);
-    plot(scanLimited);
-    hold on 
-    plot(lidarScan);
-    hold off
+%     figure(10);
+%     plot(scanLimited);
+%     hold on 
+%     plot(lidarScan);
+%     hold off
     if (scanLimited.Count == 0) 
         isObstacle = 0;
     else 
@@ -30,12 +30,16 @@ vfh.UseLidarScan = true;
 
 % Limit for range readings. Used to ignore obstacles that are too far from
 % the vehicle. 
-vfh.DistanceLimits = [0.05 1.5];
+vfh.DistanceLimits = [0.05 1];
 
 % Radius of actual robot! 
 vfh.RobotRadius = 0.3;
 
 vfh.MinTurningRadius = 0.1;
+
+vfh.PreviousDirectionWeight = 4;
+vfh.CurrentDirectionWeight = 2;
+vfh.TargetDirectionWeight = 7;
 
 % Meters around the robot which should be avoided! 
 vfh.SafetyDistance = 0.5;

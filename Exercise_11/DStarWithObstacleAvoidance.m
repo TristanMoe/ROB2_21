@@ -70,7 +70,7 @@ controller = robotics.PurePursuit;
 controller.Waypoints = path; 
 controller.DesiredLinearVelocity = 0.6; 
 controller.MaxAngularVelocity = 1.5; 
-controller.LookaheadDistance = 1.5;
+controller.LookaheadDistance = 2;
 
 %% Set VFHController
 vfhController = setUpVFHController();

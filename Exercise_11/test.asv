@@ -18,7 +18,7 @@ odomSub = rossubscriber('/odom');
 robot = rospublisher('/mobile_base/commands/velocity');
 velmsg = rosmessage(robot);
 
-isFound = findGreenCircle(cameraSub, velMsg, velPub, laserSub);
+isFound = findGreenCircle(cameraSub, velMsg, velPub);
 
  odomdata = receive(odomSub, 2); 
  pose = odomdata.Pose.Pose;
@@ -34,7 +34,7 @@ isFound = findGreenCircle(cameraSub, velMsg, velPub, laserSub);
  
  tic;
  while toc < 2
-    velmsg.Linear.X = 0.6; 
+    velmsg.Linear.X = 0.5; 
     velmsg.Angular.Z = 0;
     send(robot, velmsg);
  end

@@ -3,7 +3,7 @@ function [checkScanForObstacle, avoidObstacle, setUpVFHController, getPoseVector
     checkScanForObstacle = @checkScanForObstacle;
     avoidObstacle = @avoidObstacle;
     getPoseVector = @getPoseVector;
-    runAMCL = @runAMCL
+    runAMCL = @runAMCL;
 end
 
 function [isObstacle] = checkScanForObstacle(lidarScan, minRange, maxRange, angleInterval)
@@ -30,15 +30,15 @@ vfh.UseLidarScan = true;
 
 % Limit for range readings. Used to ignore obstacles that are too far from
 % the vehicle. 
-vfh.DistanceLimits = [0.5 2];
+vfh.DistanceLimits = [0.05 1.5];
 
 % Radius of actual robot! 
-vfh.RobotRadius = 0.3;
+vfh.RobotRadius = 0.4;
 
 vfh.MinTurningRadius = 0.1;
 
 % Meters around the robot which should be avoided! 
-vfh.SafetyDistance = 0.1;
+vfh.SafetyDistance = 0.5;
 end 
 
 % Calculate obstacle free steering direction. 
@@ -60,14 +60,16 @@ numberOfIterations, visualizationHelper)
         % Create a lidarScan object from the ranges and angles
         scan = lidarScan(ranges,angles);   
         
-        [numberOfIterations] = runAMCL(amcl, scan, poseVector,numberOfIterations, visualizationHelper);
+        [estimatedPose, estimatedCovariance,numberOfIterations] = runAMCL(amcl, scan, poseVector,numberOfIterations, visualizationHelper);
         
-        steerDir = controllerVFH(scan, targetDir);           
+        steerDir = controllerVFH(scan, targetDir-estimatedPose(3)); 
+        figure(4);
+        show(controllerVFH);
     
         % Calculate velocities
         if ~isnan(steerDir) % If steering direction is valid
             desiredV = 0.2;
-            w = exampleHelperComputeAngularVelocity(steerDir, 1);
+            w = exampleHelperComputeAngularVelocity(steerDir, 0.5);
         else % Stop and search for valid direction
             desiredV = 0.0;
             w = 0.5;
@@ -93,7 +95,6 @@ end
 function [estimatedPose, estimatedCovariance, numberOfIterations] = ...
 runAMCL(amcl, lidarScan, pose,numberOfIterations, visualizationHelper)
 
-figure(5);
 [isUpdated, estimatedPose, estimatedCovariance] = amcl(pose, lidarScan);
 if isUpdated
     numberOfIterations = numberOfIterations + 1;
