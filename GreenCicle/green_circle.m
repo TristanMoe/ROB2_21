@@ -7,44 +7,40 @@ setenv('ROS_IP','84.238.65.133')
 rosinit('http://192.168.203.130:11311','NodeHost','84.238.65.133');
 
 % For test on local file
-%image = imread('C:\Users\Holme\Desktop\6_semester\ROB2\NyeRepo\GreenCicle\green.JPG');
+image2 = imread('C:\Users\Holme\Desktop\6_semester\ROB2\NyeRepo\GreenCicle\green.JPG');
 
 cameraSub = rossubscriber('/camera/rgb/image_raw');
+laserSub = rossubscriber('/scan');
 [velPub,velMsg] = rospublisher('/mobile_base/commands/velocity');
+laserScan = receive(laserSub);
 
-while true
-    velMsg.Linear.X = 0.2;
-    velMsg.Angular.Z = 0.2;
+driveAround = true;
+lookingAtGreenCircle = false;
+while driveAround
+    velMsg.Linear.X = 0;
+    velMsg.Angular.Z = 0.5;
     velPub.send(velMsg);
-    image = getImageFromCamera(cameraSub);
-    
-    %m1lab = filter(image); % Filtering does not work properly with ROS image
-    m1lab = image;
+    image = readImage(receive(cameraSub));
+    imageProps = getImageProps(image);  % Needs filtering
 
-    m1prop = regionprops(m1lab, 'Eccentricity', 'Centroid'); %TODO: This is not good with turtlebot
-
-    xCoordinate = 0;  % Of circle center
-    pixelsOnXAxis = 640; % Resolution is 640*480
-    middleOfXAxis = pixelsOnXAxis/2;
-
-    if ~isempty(m1prop)
-        for i = 1 : size(m1prop, 1)
-            [greenCircleDetected, xCoordinate] = detectGreenCircle(m1prop, img_rot);
+    if ~isempty(imageProps)
+        for i = 1 : size(imageProps, 1)
+            [greenCircleDetected, xCoordinate] = detectGreenCircle(imageProps);
             if greenCircleDetected
-                %Break the while loop
-                break;
+                if xCoordinate > 100 && xCoordinate < 400
+                    disp("Green circle is detected")
+                    driveAround = false;
+                    break;
+                end
             end
         end
     end
 end
 
-if xCoordinate < middleOfXAxis
-    disp("I need to turn left")
-elseif xCoordinate > middleOfXAxis
-    disp("I need to turn right")
-else
+if not(driveAround)
     disp("I need to use scan to judge distance from target")
-    distanceOk = getDistance();
+    distanceOk = false;
+    %distanceOk = getDistance();
     if distanceOk
         %We are looking at the green circle at an appropriate distance
         %Tristan and Martin takes over
@@ -52,8 +48,24 @@ else
 end
 
 %% functions
+function imgProps = getImageProps(image)
+    greenImg = 2*image(:,:,2)-image(:,:,3)-image(:,:,1); %Remove all non-green color
+    logImg = logical(greenImg);
+
+    % Remove small blobs / noise
+    imgReduced = bwpropfilt(logImg, 'Area', [300 10000]); 
+%     % Remove high eccentricity 
+    imgEcc = bwpropfilt(imgReduced, 'Eccentricity', 1, 'smallest');
+    
+    imagesc(imgEcc)
+ 
+    imgProps = regionprops(imgEcc, 'Eccentricity', 'Centroid', 'Area', 'Circularity');
+end
+
+
+
 function image = getImageFromCamera(camSub)
-    msg = receive(camSub);
+    msg = readImage(receive(camSub))
 
     %Get msg details
     imgData = msg.Data;
@@ -75,30 +87,17 @@ function image = getImageFromCamera(camSub)
     image = img_rot;
 end
 
-function [greenCircleDetected, xCoordinate] = detectGreenCircle(m1prop, image)
-    isCircle = false;
+function [greenCircleDetected, xCoordinate] = detectGreenCircle(m1prop)
+
     greenCircleDetected = false;
-    if m1prop.Eccentricity < 0.6
-       isCircle = true;
-       disp("this is a circle")
+    if m1prop.Eccentricity(1) < 0.6 && m1prop.Circularity > 0.8
+       greenCircleDetected = true;
     end
     center = m1prop.Centroid;
     
     xCoordinate = int32(center(1,1));
     yCoordinate = int32(center(1,2));
     disp(xCoordinate + "," + yCoordinate)
-    
-    % Check if center of circle is green
-    red = image(yCoordinate,xCoordinate,1);
-    green = image(yCoordinate,xCoordinate,2);
-    blue = image(yCoordinate,xCoordinate,3);
-        
-    if(green > blue && green > red && isCircle)
-        greenCircleDetected = true;
-        disp("Green cicle detected")
-    else
-        disp("Circle was not green")
-    end
 end
 
 function m1lab = filter(image)
@@ -106,11 +105,11 @@ function m1lab = filter(image)
     figure
     imagesc(m1g), colorbar
     
-    m1b = m1g < 130;
+    m1b = m1g < 100;
     figure
     imagesc(m1b)
     
-    m1bd = imclose(m1b, strel('disk', 10)); % TODO: Test and tune
+    m1bd = imclose(m1b, strel('disk', 5)); % TODO: Test and tune
     figure
     imagesc(m1bd)
     
@@ -126,8 +125,8 @@ function distanceOk = getDistance()
 end
 
 % Wont be used - use laser scan instead
-function markerDistance = getDistance(pixelHeight)  % Input should be height of circle in pixels
-    k = 533;
-    actualHeight = 200;  % What is actual height?
-    markerDistance = (k * circleSize) / pixelHeight;
-end
+%function markerDistance = getDistance(pixelHeight)  % Input should be height of circle in pixels
+%    k = 533;
+%    actualHeight = 200;  % What is actual height?
+%    markerDistance = (k * circleSize) / pixelHeight;
+%end
