@@ -1,4 +1,4 @@
-function closeEnough = detectDistance(scan)
+function [closeEnough, distance] = detectDistance(scan)
     if(~isnan(scan.Ranges(319)))
         distance = scan.Ranges(319);
     else
