@@ -22,6 +22,7 @@ function [xCoordinate] = findGreenCircle(cameraSub, velMsg, velPub, laserSub)
                             velMsg.Linear.X = 0.1;
                             
                             if(closeEnough)
+                                disp("Now 40cm in front of dot")
                                 return;
                             end
                             break;

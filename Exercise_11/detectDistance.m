@@ -9,13 +9,10 @@ function [closeEnough, distance] = detectDistance(scan)
     end
     
     if(distance>0.4+robotRadius)
-        disp("too far away")
         closeEnough = false;
     elseif(distance<0.4+robotRadius)
-        disp("too close")
         closeEnough = true;
     elseif(distance == 0.4+robotRadius)
-        disp("perfect")
         closeEnough = true;
     end
 end
