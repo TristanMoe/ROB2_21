@@ -1,4 +1,6 @@
 function [xCoordinate] = findGreenCircle(cameraSub, velMsg, velPub, laserSub)
+% Inspiration from mathworks, Track and Follow an Object Using a Turtlebot,
+% link: https://www.mathworks.com/help/supportpkg/turtlebotrobot/ug/track-and-follow-an-object-with-turtlebot.html?fbclid=IwAR2lTxv0wq5tTIkqdE7RYp6kLg0yGrfYIW7DY54BVlbIN4Dprb2lviziOQE
     driveAround = true;
     while driveAround
         velMsg.Linear.X = 0;
