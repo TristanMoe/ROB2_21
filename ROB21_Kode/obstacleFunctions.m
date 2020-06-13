@@ -25,7 +25,7 @@ vfh.UseLidarScan = true;
 
 % Limit for range readings. Used to ignore obstacles that are too far from
 % the vehicle. 
-vfh.DistanceLimits = [0.05 1];
+vfh.DistanceLimits = [0.05 1.5];
 
 % Radius of actual robot! 
 vfh.RobotRadius = 0.3;
