@@ -3,9 +3,9 @@ close all
 
 %% 
 % !!! REMEMBER TO CHANGE IP BASED ON HOST !!!
-setenv('ROS_MASTER_URI','http://192.168.80.128:11345')
-setenv('ROS_IP','192.168.1.107')
-rosinit('http://192.168.80.128:11311','NodeHost','192.168.1.107');
+setenv('ROS_MASTER_URI','http://192.168.124.129:11345')
+setenv('ROS_IP','192.168.87.106')
+rosinit('http://192.168.124.129:11311','NodeHost','192.168.87.106');
 
 cameraSub = rossubscriber('/camera/rgb/image_raw');
 [velPub,velMsg] = rospublisher('/mobile_base/commands/velocity');
@@ -24,7 +24,7 @@ estimatedPose = DStarWithObstacleAvoidance(start, goal, pixelToMeterRatio, 0);
 
 
 findGreenCircle(cameraSub, velMsg, velPub, laserSub);
-%%
+%% Return to path
 
  tic;
  while toc < 2
@@ -44,8 +44,6 @@ findGreenCircle(cameraSub, velMsg, velPub, laserSub);
     send(robot, velMsg);
  end
  
-
- 
  odomdata = receive(odomSub, 2); 
  pose = odomdata.Pose.Pose;
  quat = pose.Orientation;
@@ -57,5 +55,5 @@ goal = [670 70];
 estimatedPose = DStarWithObstacleAvoidance(...
     round(estimatedPose(1:2)*pixelToMeterRatio), ...
     goal, pixelToMeterRatio, angles(1));
-%%
+%% Find Cicle at C
 findGreenCircle(cameraSub, velMsg, velPub, laserSub);

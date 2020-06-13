@@ -10,9 +10,6 @@ rosinit('http://192.168.124.128:11311','NodeHost','192.168.87.106');
 laserSub = rossubscriber('/scan');
 odomSub = rossubscriber('/odom');
 
-% Subscribe to bumper 
-bumpSub = rossubscriber('/mobile_base/sensors/bumper_pointcloud', 'BufferSize', 5);
-
 % Create publisher for sender velocity commands 
 [velPub,velMsg] = ...
     rospublisher('/mobile_base/commands/velocity');
@@ -21,13 +18,13 @@ bumpSub = rossubscriber('/mobile_base/sensors/bumper_pointcloud', 'BufferSize', 
 vfh = setUpVFHController(); 
 % Avoid obstacle and optain current steering direction
 targetDir = 0; 
-currentSteerDir = avoidObstacle(vfh, targetDir, 5, laserSub, velPub, velMsg); 
+currentSteerDir = avoidObstacle(vfh, targetDir, 120, laserSub, velPub, velMsg); 
 rosshutdown
 
 % If anything is registrered in range interval, function returns 1 else 0. 
 % Activate VFH if there is obstacle within 1 meter. 
-function [isObstacle] = checkScanForObstacle(lidarScan, minRange, maxRange, minAngle, maxAngle)
-    scanLimited = removeInvalidData(lidarScan, 'RangeLimits', [minRange, maxRange], 'AngleLimits', [minAngle, maxAngle]); 
+function [isObstacle] = checkScanForObstacle(lidarScan, minRange, maxRange)
+    scanLimited = removeInvalidData(lidarScan, 'RangeLimits', [minRange, maxRange]); 
     if (scanLimited.Count == 0) 
         isObstacle = 1;
     else 
@@ -42,10 +39,9 @@ vfh = controllerVFH;
 vfh.UseLidarScan = true;
 % Set this weight to find most optimal path. 
 
-% Limit for range readings. Used to ignore obstacles that are too far from
+% Limit for range readings. Used to ingore obstacles that are too far from
 % the vehicle. 
-vfh.DistanceLimits = [0.5 1];
-
+vfh.DistanceLimits = [0.5 2];
 % Radius of actual robot! 
 vfh.RobotRadius = 0.3;
 
@@ -59,7 +55,7 @@ end
 function [steerDir] = avoidObstacle(controllerVFH, targetDir, length, laserSub, velPub, velMsg) 
     % https://www.mathworks.com/help//nav/ref/ratecontrol.html
     % Loop frequency. 
-    rate = rateControl(10);
+    rate = rateControl(1);
 
     while rate.TotalElapsedTime < length
         
@@ -70,13 +66,13 @@ function [steerDir] = avoidObstacle(controllerVFH, targetDir, length, laserSub, 
  
         % Create a lidarScan object from the ranges and angles
         scan = lidarScan(ranges,angles);     
-        
         steerDir = controllerVFH(scan, targetDir);           
+        show(controllerVFH);
     
         % Calculate velocities
         if ~isnan(steerDir) % If steering direction is valid
             desiredV = 0.2;
-            w = exampleHelperComputeAngularVelocity(steerDir, 1);
+            w = exampleHelperComputeAngularVelocity(steerDir);
         else % Stop and search for valid direction
             desiredV = 0.0;
             w = 0.5;

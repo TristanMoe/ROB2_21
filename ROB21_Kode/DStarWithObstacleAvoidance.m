@@ -1,14 +1,8 @@
-%% Initiate 
-rosshutdown
-close all
-[checkScanForObstacle, avoidObstacle, setUpVFHController, getPoseVector, runAMCL] = obstacleFunctions();
-%% 
-% !!! REMEMBER TO CHANGE IP BASED ON HOST !!!
-setenv('ROS_MASTER_URI','http://192.168.80.128:11345')
-setenv('ROS_IP','192.168.1.107')
-rosinit('http://192.168.80.128:11311','NodeHost','192.168.1.107');
-%% 
-% Substribe to odometer and laser scanner. 
+function [estimatedPose] = DStarWithObstacleAvoidance(startPixel, stopPixel, pixelToMeter, startTheta)
+[checkScanForObstacle, avoidObstacle, setUpVFHController, getPoseVector, runAMCL] = ...
+    obstacleFunctions();
+    % Substribe to odometer and laser scanner. 
+    
 laserSub = rossubscriber('/scan');
 odomSub = rossubscriber('/odom');
 [pub,msg] = rospublisher('/mobile_base/commands/reset_odometry','std_msgs/Empty');
@@ -28,19 +22,10 @@ velmsg = rosmessage(robot);
 image = imread('shannon.png');
 imshow(image)
 
-
 %% Convert to grayscale and black and white image
 grayimage = rgb2gray(image);
 bwimage = grayimage < 220;
 
-%% 
-
-entreM2 = 9.9;
-pixelWidth = 57;
-pixelLength = 139;
-res = 139/57;
-WidthInMeter = sqrt(9.9/res);
-pixelToMeterRatio = pixelWidth/WidthInMeter;
 %%
 
 % Lab is 52.2 m2 and image-lab is 99px x 265 px
@@ -52,22 +37,28 @@ gridWidth = 25;
 grid = flipud(bwimage);
 se = strel('square',gridWidth);
 gridAfterDialate = imdilate(grid,se);
-imagesc(gridAfterDialate);
+imshow(gridAfterDialate);
 
 %%
+map = robotics.BinaryOccupancyGrid(bwimage, pixelToMeter); 
 
-start = [1105 567]; 
-goal = [150 200]; 
+start = startPixel; 
+goal = stopPixel; 
 
 dx = DXform(gridAfterDialate);
 dx.plan(goal);
 path = dx.query(start, 'animate'); 
+path = path/map.Resolution; 
+% Set movement properties
+goalRadius = 1; 
+
+distanceToGoal = norm(start/map.Resolution - goalRadius); 
 
 %% localizationSetup
-map = robotics.BinaryOccupancyGrid(bwimage, 22.5); %%this is changed to map instead of grid dialate
+
 startInMeters = start/map.Resolution;
 
-initialPose = [startInMeters(1) startInMeters(2) 0]; 
+initialPose = [startInMeters(1) startInMeters(2) startTheta]; 
 
 amcl = setupAMCL(map, initialPose);
 
@@ -79,7 +70,7 @@ controller = robotics.PurePursuit;
 controller.Waypoints = path; 
 controller.DesiredLinearVelocity = 0.6; 
 controller.MaxAngularVelocity = 1.5; 
-controller.LookaheadDistance = 1.5;
+controller.LookaheadDistance = 2;
 
 %% Set VFHController
 vfhController = setUpVFHController();
@@ -88,6 +79,8 @@ maxRangeObstacleDetect = 1.2;
 angleIntervalThreshold = 0.15;
 
 % Loop - scan, drive.
+% Inspiration from mathworks, Path Following for a Differential Drive
+% Robot, link: https://www.mathworks.com/help/robotics/examples/path-following-for-differential-drive-robot.html
 i=0;
 while(distanceToGoal >= goalRadius)
     poseVector = getPoseVector(odomSub, startInMeters);
@@ -102,7 +95,7 @@ while(distanceToGoal >= goalRadius)
     if(isObstacle)
         isObstacle
         [steerDir, numberOfIterations] = avoidObstacle(vfhController, ...
-            estimatedPose(3), 10, laserSub, robot, velMsg,...
+            estimatedPose(3), 20, laserSub, robot, velMsg,...
             odomSub, startInMeters, amcl,i, visualizationHelper);
         i = numberOfIterations;
     else
@@ -115,13 +108,15 @@ while(distanceToGoal >= goalRadius)
             
     distanceToGoal = norm(estimatedPose(1:2) - goal/map.Resolution);  
 end
+end
+
+
 
 function [amcl] = setupAMCL(map, initialPose)
-
 odometryModel = robotics.OdometryMotionModel;
 odometryModel.Noise = [0.2 0.2 0.2 0.2];
 
-% Link: https://se.mathworks.com/help/nav/ref/likelihoodfieldsensormodel.html
+% Inspiration from Mathworks solution, link: https://www.mathworks.com/help/nav/ug/implement-simultaneous-localization-and-mapping-with-lidar-scans.html
 rangeFinderModel = robotics.LikelihoodFieldSensorModel;
 % Min, Max of sensor readings.
 rangeFinderModel.SensorLimits = [0.45 10];
@@ -168,8 +163,4 @@ amcl.GlobalLocalization = false;
 % This helper function retrieves thoe robot's current true pose from Gazebo
 amcl.InitialPose = initialPose;
 amcl.InitialCovariance = eye(3)*0.5;
-
 end 
-
-
-
